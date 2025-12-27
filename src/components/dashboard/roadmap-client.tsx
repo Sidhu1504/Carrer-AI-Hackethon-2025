@@ -64,7 +64,7 @@ export function RoadmapClient() {
         <div className="space-y-8">
             <Card>
                 <CardHeader>
-                    <CardTitle>Select a Profession</CardTitle>
+                    <CardTitle>Select a Goals</CardTitle>
                     <CardDescription>Choose a career path to generate a detailed learning roadmap.</CardDescription>
                 </CardHeader>
                 <CardContent>

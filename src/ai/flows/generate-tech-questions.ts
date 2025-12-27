@@ -31,17 +31,17 @@ const prompt = ai.definePrompt({
   name: 'generateTechQuestionsPrompt',
   input: {schema: GenerateTechQuestionsInputSchema},
   output: {schema: GenerateTechQuestionsOutputSchema},
-  prompt: `You are a senior technical interviewer and expert engineer. Your task is to generate 5-7 insightful interview questions about the following technologies: {{technologies}}.
+  prompt: `You are a senior technical interviewer and expert engineer. Your task is to generate 5-7 insightful and commonly asked interview questions about the following technologies: {{technologies}}.
 
 The user wants '{{questionType}}' questions.
 
 If the user wants 'theory' questions:
-- The questions should be conceptual and test a deep understanding of the technology.
+- The questions should be conceptual and test a deep understanding of the technology, reflecting real-world interview scenarios.
 - Cover a range of topics from beginner to advanced.
-- For each question, provide a brief "details" section explaining the key concepts the candidate is expected to know.
+- For each question, provide a brief "details" section in Markdown explaining the key concepts the candidate is expected to know.
 
 If the user wants 'practical' questions:
-- The tasks should be realistic, small-scale projects or coding challenges.
+- The tasks should be realistic, small-scale projects or coding challenges that are frequently given in interviews.
 - The "question" should be the task title (e.g., "Build a Simple To-Do List App").
 - The "details" section MUST be a detailed, step-by-step implementation guide for completing the task, formatted in Markdown. Include code snippets where appropriate.
 
