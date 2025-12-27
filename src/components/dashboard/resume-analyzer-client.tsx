@@ -17,10 +17,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import * as pdfjs from 'pdfjs-dist/build/pdf';
+import { useUser, useFirestore } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 // Required for pdfjs-dist to work
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-
 
 type AnalysisResult = {
     ats: AnalyzeResumeAtsOutput;
@@ -62,6 +65,8 @@ export function ResumeAnalyzerClient() {
     const [state, formAction] = useActionState(analyzeResumeAction, { result: null, error: null });
     const [resumeText, setResumeText] = useState('');
     const [fileName, setFileName] = useState('');
+    const { user } = useUser();
+    const firestore = useFirestore();
 
     useEffect(() => {
         if (state.error) {
@@ -72,6 +77,35 @@ export function ResumeAnalyzerClient() {
             });
         }
     }, [state.error, toast]);
+    
+    useEffect(() => {
+        if (state.result && user && firestore) {
+            const saveAnalysis = async () => {
+                const collectionRef = collection(firestore, `users/${user.uid}/resumeAnalyses`);
+                const analysisData = {
+                    userId: user.uid,
+                    atsScore: state.result!.ats.atsScore,
+                    improvementSuggestions: state.result!.ats.improvementSuggestions,
+                    missingSkills: state.result!.skills.missingSkills,
+                    learningPlan: state.result!.skills.learningPlan,
+                    analysisDate: serverTimestamp(),
+                };
+                
+                addDoc(collectionRef, analysisData)
+                  .catch(error => {
+                    errorEmitter.emit(
+                      'permission-error',
+                      new FirestorePermissionError({
+                        path: collectionRef.path,
+                        operation: 'create',
+                        requestResourceData: analysisData,
+                      })
+                    )
+                  });
+            };
+            saveAnalysis();
+        }
+    }, [state.result, user, firestore]);
 
     const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -225,3 +259,4 @@ export function ResumeAnalyzerClient() {
         </div>
     );
 }
+    

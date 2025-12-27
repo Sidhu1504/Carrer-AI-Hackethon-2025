@@ -26,6 +26,11 @@ import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import * as pdfjs from 'pdfjs-dist/build/pdf';
+import { useUser, useFirestore } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 // Required for pdfjs-dist to work
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -55,6 +60,9 @@ export function MockInterviewClient() {
 
     const { isListening, transcript, startListening, stopListening, error: speechError } = useSpeechToText();
 
+    const { user } = useUser();
+    const firestore = useFirestore();
+
     useEffect(() => {
         if(speechError) {
             toast({
@@ -70,6 +78,35 @@ export function MockInterviewClient() {
             setAnswer(transcript);
         }
     }, [transcript]);
+    
+    useEffect(() => {
+        if (interviewState === 'completed' && user && firestore) {
+            const saveInterview = async () => {
+                const avgScore = allFeedback.length > 0 ? allFeedback.reduce((acc, fb) => acc + fb.score, 0) / allFeedback.length : 0;
+                
+                const collectionRef = collection(firestore, `users/${user.uid}/mockInterviews`);
+                const interviewData = {
+                    userId: user.uid,
+                    profession,
+                    averageScore: avgScore,
+                    interviewDate: serverTimestamp(),
+                };
+                
+                addDoc(collectionRef, interviewData)
+                  .catch(error => {
+                    errorEmitter.emit(
+                      'permission-error',
+                      new FirestorePermissionError({
+                        path: collectionRef.path,
+                        operation: 'create',
+                        requestResourceData: interviewData,
+                      })
+                    )
+                  });
+            };
+            saveInterview();
+        }
+    }, [interviewState, user, firestore, allFeedback, profession]);
 
     const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -455,3 +492,4 @@ export function MockInterviewClient() {
         </div>
     );
 }
+    
