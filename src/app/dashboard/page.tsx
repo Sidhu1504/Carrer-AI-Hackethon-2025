@@ -16,11 +16,29 @@ import {
     TrendingDown,
     TrendingUp,
 } from 'lucide-react';
-import { useUser } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query, orderBy } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user } = useUser();
+  const firestore = useFirestore();
   const userName = user?.displayName || user?.email?.split('@')[0] || 'there';
+
+  const mockInterviewsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+      collection(firestore, `users/${user.uid}/mockInterviews`),
+      orderBy("interviewDate", "asc")
+    );
+  }, [user, firestore]);
+
+  const { data: mockInterviews, isLoading: isLoadingInterviews } = useCollection(mockInterviewsQuery);
+
+  const chartData = mockInterviews?.map((interview, index) => ({
+    name: `Session ${index + 1}`,
+    score: interview.averageScore,
+  })) || [];
   
   return (
     <>
@@ -109,11 +127,17 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Performance Overview</CardTitle>
             <CardDescription>
-              Your mock interview scores over the last 7 sessions.
+              Your mock interview scores over time.
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <OverviewChart />
+            {isLoadingInterviews ? (
+              <div className="flex items-center justify-center h-[350px]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <OverviewChart data={chartData} />
+            )}
           </CardContent>
         </Card>
         <Card className="col-span-3">
