@@ -15,7 +15,7 @@ const GenerateTechQuestionsInputSchema = z.object({
   technologies: z.array(z.string()).describe('A list of technologies to generate questions for (e.g., ["React", "Docker"]).'),
   questionType: z.enum(['theory', 'practical']).describe('The type of questions to generate: "theory" for conceptual questions or "practical" for hands-on tasks.'),
 });
-export type GenerateTechQuestionsInput = z.infer<typeof GenerateTechQuestionsInputSchema>;
+type GenerateTechQuestionsInput = z.infer<typeof GenerateTechQuestionsInputSchema>;
 
 const QuestionSchema = z.object({
   question: z.string().describe('The theoretical question or the title of the practical task.'),
@@ -25,7 +25,7 @@ const QuestionSchema = z.object({
 const GenerateTechQuestionsOutputSchema = z.object({
   questions: z.array(QuestionSchema).describe('An array of 5-7 generated questions or tasks.'),
 });
-export type GenerateTechQuestionsOutput = z.infer<typeof GenerateTechQuestionsOutputSchema>;
+type GenerateTechQuestionsOutput = z.infer<typeof GenerateTechQuestionsOutputSchema>;
 
 const prompt = ai.definePrompt({
   name: 'generateTechQuestionsPrompt',
@@ -35,21 +35,17 @@ const prompt = ai.definePrompt({
 
 The user wants '{{questionType}}' questions.
 
-{{#if (eq questionType "theory")}}
-**For Theory Questions:**
+If the user wants 'theory' questions:
 - The questions should be conceptual and test a deep understanding of the technology.
 - Cover a range of topics from beginner to advanced.
 - For each question, provide a brief "details" section explaining the key concepts the candidate is expected to know.
-{{/if}}
 
-{{#if (eq questionType "practical")}}
-**For Practical Tasks:**
+If the user wants 'practical' questions:
 - The tasks should be realistic, small-scale projects or coding challenges.
 - The "question" should be the task title (e.g., "Build a Simple To-Do List App").
 - The "details" section MUST be a detailed, step-by-step implementation guide for completing the task, formatted in Markdown. Include code snippets where appropriate.
-{{/if}}
 
-Generate the questions in the specified JSON format.
+Generate the questions in the specified JSON format based on the requested question type.
 `,
 });
 
