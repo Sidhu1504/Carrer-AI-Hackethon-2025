@@ -1,0 +1,119 @@
+/**
+ * This ruleset enforces a strict user-ownership model for the CareerCraft AI application.
+ * All user-generated content is private and accessible only by the user who created it.
+ *
+ * Core Philosophy:
+ * The security model is built on the principle that users have exclusive control over their own data.
+ * There are no public or shared collections; every piece of data is tied to a specific user account.
+ *
+ * Data Structure:
+ * Data is organized hierarchically. A top-level `/users` collection holds individual user documents.
+ * All other data, such as `resumeAnalyses` and `mockInterviews`, are stored in subcollections
+ * directly under the corresponding `/users/{userId}` document. This structure ensures that
+ * authorization can be determined simply by looking at the document path.
+ *
+ * Key Security Decisions:
+ * - User Isolation: Users can only read or write data within their own data tree (e.g., `/users/THEIR_OWN_UID/...`).
+ * - No Public Access: All operations require user authentication.
+ * - User Privacy: Listing the top-level `/users` collection is explicitly forbidden to prevent user enumeration attacks.
+ *
+ * Denormalization for Authorization:
+ * This ruleset relies on path-based security, which is highly performant. The user's UID (`userId`) is part of
+ * the document path for all their data, avoiding the need for slow and costly `get()` calls to other documents
+ * to verify ownership.
+ *
+ * Structural Segregation:
+ * All user-specific, private data (like resume analyses) is stored in user-owned subcollections.
+ * This naturally segregates each user's data, making it impossible for one user's list query to
+ * accidentally access another user's private information.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for concise and readable rules
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Checks if the requesting user's UID matches the userId in the document path.
+    // This is the core of the ownership model.
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // A robust check for update and delete operations.
+    // Verifies ownership AND ensures the document actually exists before modification.
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    // On create, ensures the document's internal `id` field matches the document's path {userId}.
+    // This enforces relational integrity from the moment of creation.
+    function hasValidUserDataOnCreate(userId) {
+      return request.resource.data.id == userId;
+    }
+
+    // On update, ensures the document's internal `id` field cannot be changed.
+    // This prevents re-assigning the user document to a different owner.
+    function isUserDataImmutableOnUpdate() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    // On create, ensures a subcollection document's `userId` field points back to its parent user.
+    // This establishes the ownership link within the document's data.
+    function hasValidSubcollectionDataOnCreate(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    // On update, ensures the ownership link (`userId` field) in a subcollection document is immutable.
+    function isSubcollectionDataImmutableOnUpdate() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    /**
+     * @description Controls access to a user's own profile document.
+     * @path /users/{userId}
+     * @allow A signed-in user (auth.uid='user123') can create their own user document at `/users/user123`.
+     * @deny An anonymous user cannot read any user document. A signed-in user cannot list all users.
+     * @principle A user can create and manage their own root document, but cannot see other users' documents.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // CRITICAL: Prevents enumerating all users in the application.
+      allow create: if isOwner(userId) && hasValidUserDataOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isUserDataImmutableOnUpdate();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Secures a user's private collection of resume analysis results.
+     * @path /users/{userId}/resumeAnalyses/{resumeAnalysisId}
+     * @allow A user (auth.uid='user123') can list all documents in `/users/user123/resumeAnalyses`.
+     * @deny A different user (auth.uid='user456') cannot read or write to `/users/user123/resumeAnalyses`.
+     * @principle Restricts access to a user's own data tree using path-based ownership.
+     */
+    match /users/{userId}/resumeAnalyses/{resumeAnalysisId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && hasValidSubcollectionDataOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isSubcollectionDataImmutableOnUpdate();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Secures a user's private collection of mock interview history.
+     * @path /users/{userId}/mockInterviews/{mockInterviewId}
+     * @allow A user (auth.uid='user123') can create a new document in `/users/user123/mockInterviews`.
+     * @deny A different user (auth.uid='user456') cannot list documents in `/users/user123/mockInterviews`.
+     * @principle Restricts access to a user's own data tree using path-based ownership.
+     */
+    match /users/{userId}/mockInterviews/{mockInterviewId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && hasValidSubcollectionDataOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isSubcollectionDataImmutableOnUpdate();
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}
