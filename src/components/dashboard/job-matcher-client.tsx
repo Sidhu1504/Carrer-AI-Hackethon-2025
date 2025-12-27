@@ -5,7 +5,7 @@ import { useFormStatus } from 'react-dom';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Wand2, Upload, Badge } from 'lucide-react';
+import { Loader2, Wand2, Upload } from 'lucide-react';
 import { analyzeJobMatch } from '@/ai/flows/job-matcher-analysis';
 import type { JobMatchAnalysisOutput } from '@/ai/flows/job-matcher-analysis';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import * as pdfjs from 'pdfjs-dist/build/pdf';
 import ReactMarkdown from 'react-markdown';
+import { Badge } from '@/components/ui/badge';
 
 // Required for pdfjs-dist to work
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
