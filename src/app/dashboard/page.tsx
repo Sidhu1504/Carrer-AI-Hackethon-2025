@@ -19,6 +19,7 @@ import {
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -34,6 +35,11 @@ export default function DashboardPage() {
   }, [user, firestore]);
 
   const { data: mockInterviews, isLoading: isLoadingInterviews } = useCollection(mockInterviewsQuery);
+
+  const interviewsTaken = mockInterviews?.length || 0;
+  const avgInterviewScore = interviewsTaken > 0 
+    ? mockInterviews.reduce((acc, interview) => acc + interview.averageScore, 0) / interviewsTaken
+    : 0;
 
   const chartData = mockInterviews?.map((interview, index) => ({
     name: `Session ${index + 1}`,
@@ -81,8 +87,12 @@ export default function DashboardPage() {
                     <BarChart className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">8.6 / 10</div>
-                    <p className="text-xs text-muted-foreground">Based on 12 interviews</p>
+                    {isLoadingInterviews ? <Skeleton className="h-8 w-24" /> : (
+                      <>
+                        <div className="text-2xl font-bold">{avgInterviewScore.toFixed(1)} / 10</div>
+                        <p className="text-xs text-muted-foreground">Based on {interviewsTaken} interviews</p>
+                      </>
+                    )}
                 </CardContent>
             </Card>
             <Card>
@@ -91,8 +101,12 @@ export default function DashboardPage() {
                     <Activity className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">12</div>
-                    <p className="text-xs text-muted-foreground">Keep practicing!</p>
+                     {isLoadingInterviews ? <Skeleton className="h-8 w-12" /> : (
+                        <>
+                            <div className="text-2xl font-bold">{interviewsTaken}</div>
+                            <p className="text-xs text-muted-foreground">Keep practicing!</p>
+                        </>
+                    )}
                 </CardContent>
             </Card>
             
