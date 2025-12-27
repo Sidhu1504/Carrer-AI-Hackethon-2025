@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const GenerateTechQuestionsInputSchema = z.object({
+const GenerateTechQuestionsInputSchema = z.object({
   technologies: z.array(z.string()).describe('A list of technologies to generate questions for (e.g., ["React", "Docker"]).'),
   questionType: z.enum(['theory', 'practical']).describe('The type of questions to generate: "theory" for conceptual questions or "practical" for hands-on tasks.'),
 });
@@ -22,7 +22,7 @@ const QuestionSchema = z.object({
   details: z.string().describe('For theory, a brief explanation of what the question is targeting. For practical, a detailed step-by-step guide to implement the task. Formatted as Markdown.'),
 });
 
-export const GenerateTechQuestionsOutputSchema = z.object({
+const GenerateTechQuestionsOutputSchema = z.object({
   questions: z.array(QuestionSchema).describe('An array of 5-7 generated questions or tasks.'),
 });
 export type GenerateTechQuestionsOutput = z.infer<typeof GenerateTechQuestionsOutputSchema>;
