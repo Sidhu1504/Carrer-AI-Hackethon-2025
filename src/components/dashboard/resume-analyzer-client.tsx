@@ -7,12 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Wand2 } from 'lucide-react';
+import { Loader2, Wand2, Upload } from 'lucide-react';
 import { skillGapIdentification } from '@/ai/flows/skill-gap-identification';
 import type { SkillGapIdentificationOutput } from '@/ai/flows/skill-gap-identification';
 import { analyzeResumeAts } from '@/ai/flows/resume-ats-analysis';
 import type { AnalyzeResumeAtsOutput } from '@/ai/flows/resume-ats-analysis';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useState, ChangeEvent } from 'react';
+import * as pdfjs from 'pdfjs-dist/build/pdf';
+
+// Required for pdfjs-dist to work
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
 
 type AnalysisResult = {
     ats: AnalyzeResumeAtsOutput;
@@ -52,7 +61,9 @@ function SubmitButton() {
 export function ResumeAnalyzerClient() {
     const { toast } = useToast();
     const [state, formAction] = useActionState(analyzeResumeAction, { result: null, error: null });
-    
+    const [resumeText, setResumeText] = useState('');
+    const [fileName, setFileName] = useState('');
+
     if (state.error) {
         toast({
           variant: "destructive",
@@ -61,20 +72,91 @@ export function ResumeAnalyzerClient() {
         });
     }
 
+    const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.type !== 'application/pdf') {
+            toast({
+                title: 'Invalid File Type',
+                description: 'Please upload a PDF file.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setFileName(file.name);
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const typedArray = new Uint8Array(event.target?.result as ArrayBuffer);
+            try {
+                const pdf = await pdfjs.getDocument(typedArray).promise;
+                let text = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    text += content.items.map(item => ('str' in item ? item.str : '')).join(' ');
+                }
+                setResumeText(text);
+                toast({
+                    title: 'Success',
+                    description: 'PDF parsed successfully. You can now analyze the resume.',
+                });
+            } catch (error) {
+                console.error('Failed to parse PDF:', error);
+                toast({
+                    title: 'PDF Parsing Error',
+                    description: 'Could not read text from the PDF. Please try pasting the text manually.',
+                    variant: 'destructive',
+                });
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
     return (
         <div className="space-y-8">
             <Card>
                 <CardHeader>
-                    <CardTitle>Paste Your Resume</CardTitle>
+                    <CardTitle>Provide Your Resume</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <form action={formAction} className="space-y-4">
-                        <Textarea
-                            name="resumeText"
-                            placeholder="Paste the full text of your resume here..."
-                            className="min-h-[250px] text-base"
-                            required
-                        />
+                   <form action={formAction} className="space-y-4">
+                        <Tabs defaultValue="paste" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="paste">Paste Text</TabsTrigger>
+                                <TabsTrigger value="upload">Upload PDF</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="paste">
+                                <Textarea
+                                    name="resumeText"
+                                    placeholder="Paste the full text of your resume here..."
+                                    className="min-h-[250px] text-base mt-4"
+                                    value={resumeText}
+                                    onChange={(e) => setResumeText(e.target.value)}
+                                    required
+                                />
+                            </TabsContent>
+                            <TabsContent value="upload">
+                                <div className="mt-4 flex justify-center rounded-lg border border-dashed border-input px-6 py-10">
+                                    <div className="text-center">
+                                        <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
+                                        <div className="mt-4 flex text-sm leading-6 text-muted-foreground">
+                                            <Label
+                                                htmlFor="file-upload"
+                                                className="relative cursor-pointer rounded-md font-semibold text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 hover:text-primary/80"
+                                            >
+                                                <span>Upload a file</span>
+                                                <Input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept=".pdf"/>
+                                            </Label>
+                                            <p className="pl-1">or drag and drop</p>
+                                        </div>
+                                        <p className="text-xs leading-5 text-muted-foreground">PDF up to 10MB</p>
+                                        {fileName && <p className="text-sm mt-4 text-foreground">File: {fileName}</p>}
+                                    </div>
+                                </div>
+                            </TabsContent>
+                        </Tabs>
                         <SubmitButton />
                     </form>
                 </CardContent>

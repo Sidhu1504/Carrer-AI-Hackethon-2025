@@ -23,6 +23,9 @@ import { Loader2, Mic, Sparkles, Star, ChevronLeft, ChevronRight, Check, MicOff 
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useSpeechToText } from '@/hooks/use-speech-to-text';
+import { Switch } from '@/components/ui/switch';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
 type InterviewQuestion = GenerateInterviewQuestionsOutput['questions'][0];
 type InterviewState = 'idle' | 'generating_questions' | 'ready_to_start' | 'in_progress' | 'getting_feedback' | 'feedback_ready' | 'completed';
@@ -31,10 +34,15 @@ type InterviewType = 'text' | 'voice';
 export function MockInterviewClient() {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
+    const { user } = useUser();
+    const firestore = useFirestore();
     
     // Setup State
     const [profession, setProfession] = useState<string>('');
     const [interviewType, setInterviewType] = useState<InterviewType>('text');
+    const [isResumeBased, setIsResumeBased] = useState(false);
+    const [latestResumeText, setLatestResumeText] = useState<string | null>(null);
+    const [isFetchingResume, setIsFetchingResume] = useState(false);
     
     // Interview State
     const [interviewState, setInterviewState] = useState<InterviewState>('idle');
@@ -62,10 +70,45 @@ export function MockInterviewClient() {
         }
     }, [transcript]);
 
+    const fetchLatestResume = async () => {
+        if (!user || !firestore) return;
+        setIsFetchingResume(true);
+        try {
+            const analysesRef = collection(firestore, `users/${user.uid}/resumeAnalyses`);
+            const q = query(analysesRef, orderBy('analysisDate', 'desc'), limit(1));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const latestAnalysis = querySnapshot.docs[0].data();
+                setLatestResumeText(latestAnalysis.resumeText);
+                toast({ title: 'Resume loaded', description: 'Your latest resume has been loaded for the interview.' });
+            } else {
+                toast({ title: 'No resume found', description: 'Please analyze a resume first to use this feature.', variant: 'destructive' });
+                setIsResumeBased(false);
+            }
+        } catch (error) {
+            console.error("Error fetching resume:", error);
+            toast({ title: 'Error fetching resume', description: 'Could not load your latest resume.', variant: 'destructive' });
+            setIsResumeBased(false);
+        } finally {
+            setIsFetchingResume(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isResumeBased && !latestResumeText) {
+            fetchLatestResume();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isResumeBased]);
+
 
     const handleGenerateQuestions = () => {
         if (!profession) {
             toast({ title: 'Please select a profession first.', variant: 'destructive' });
+            return;
+        }
+        if (isResumeBased && !latestResumeText) {
+            toast({ title: 'Resume not loaded yet.', description: 'Please wait for your resume to be loaded or disable the resume-based option.', variant: 'destructive' });
             return;
         }
         setInterviewState('generating_questions');
@@ -75,7 +118,10 @@ export function MockInterviewClient() {
         setCurrentFeedback(null);
         startTransition(async () => {
             try {
-                const result = await generateInterviewQuestions({ profession });
+                const result = await generateInterviewQuestions({ 
+                    profession,
+                    resumeText: isResumeBased ? latestResumeText : undefined
+                });
                 setQuestions(result.questions);
                 setInterviewState('ready_to_start');
             } catch (error) {
@@ -145,6 +191,8 @@ export function MockInterviewClient() {
         setAllFeedback([]);
         setCurrentQuestionIndex(0);
         setCurrentFeedback(null);
+        setIsResumeBased(false);
+        setLatestResumeText(null);
     }
 
     const renderStars = (score: number) => {
@@ -163,7 +211,7 @@ export function MockInterviewClient() {
             <Card className="max-w-2xl mx-auto">
                 <CardHeader>
                     <CardTitle>Setup Your Mock Interview</CardTitle>
-                    <CardDescription>Choose a role and interview type to get started.</CardDescription>
+                    <CardDescription>Choose a role and your preferred interview style to get started.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
@@ -183,6 +231,11 @@ export function MockInterviewClient() {
                                 <RadioGroupItem value="voice" id="type-voice" /> Voice-based Interview
                             </Label>
                         </RadioGroup>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Switch id="resume-based" checked={isResumeBased} onCheckedChange={setIsResumeBased} disabled={isFetchingResume} />
+                        <Label htmlFor="resume-based" className='cursor-pointer'>Generate questions based on my resume</Label>
+                        {isFetchingResume && <Loader2 className="h-4 w-4 animate-spin" />}
                     </div>
                     <Button onClick={handleGenerateQuestions} disabled={!profession || interviewState === 'generating_questions'} className="w-full">
                         {interviewState === 'generating_questions' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}

@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { FirebaseError } from 'firebase/app';
@@ -29,16 +29,22 @@ export async function signup(prevState: any, formData: FormData) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
+    // Update user's profile with their name
+    await updateProfile(user, { displayName: name });
+
     // Create a user document in Firestore
     await setDoc(doc(firestore, "users", user.uid), {
       uid: user.uid,
-      name: name,
+      displayName: name,
       email: user.email,
       createdAt: serverTimestamp(),
     });
 
   } catch (e) {
     if (e instanceof FirebaseError) {
+      if (e.code === 'auth/email-already-in-use') {
+        return { message: "This email is already in use. Please login instead." };
+      }
       return { message: e.message };
     }
     return { message: "An unknown error occurred. Please try again." };
@@ -65,6 +71,9 @@ export async function login(prevState: any, formData: FormData) {
     await signInWithEmailAndPassword(auth, email, password);
   } catch (e) {
      if (e instanceof FirebaseError) {
+      if (e.code === 'auth/invalid-credential') {
+        return { message: "Invalid email or password. Please try again."};
+      }
       return { message: e.message };
     }
     return { message: "An unknown error occurred. Please try again." };

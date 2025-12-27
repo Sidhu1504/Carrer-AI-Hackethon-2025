@@ -13,6 +13,7 @@ import {z} from 'genkit';
 
 const GenerateInterviewQuestionsInputSchema = z.object({
   profession: z.string().describe('The profession to generate interview questions for (e.g., "Software Engineer", "DevOps Engineer").'),
+  resumeText: z.string().optional().describe('The text of the user\'s resume. If provided, questions should be tailored to the skills and experience found in the resume.'),
 });
 export type GenerateInterviewQuestionsInput = z.infer<typeof GenerateInterviewQuestionsInputSchema>;
 
@@ -34,6 +35,14 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert hiring manager and technical interviewer for the tech industry. Your task is to generate a list of 15 realistic interview questions for the following profession: {{{profession}}}.
 
 The questions must be representative of what a real candidate would face in a modern tech interview.
+
+{{#if resumeText}}
+The questions should be tailored to the candidate's experience and skills as detailed in their resume below. Infer their years of experience and seniority from the resume.
+---
+RESUME:
+{{{resumeText}}}
+---
+{{/if}}
 
 The set of questions must cover a range of categories, including:
 - Conceptual (e.g., "Explain the difference between TCP and UDP.")
