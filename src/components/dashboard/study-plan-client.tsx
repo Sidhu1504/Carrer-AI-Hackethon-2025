@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Wand2, Upload, CalendarCheck } from 'lucide-react';
 import { generateStudyPlan } from '@/ai/flows/generate-study-plan';
-import type { GenerateStudyPlanOutput } from '@/ai/flows/generate-study-plan';
+import { GenerateStudyPlanOutput } from '@/ai/flows/generate-study-plan';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -61,6 +61,11 @@ export function StudyPlanClient() {
     const [state, formAction] = useActionState(generatePlanAction, { result: null, error: null });
     const [resumeText, setResumeText] = useState('');
     const [fileName, setFileName] = useState('');
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     useEffect(() => {
         if (state.error) {
@@ -114,6 +119,10 @@ export function StudyPlanClient() {
         };
         reader.readAsArrayBuffer(file);
     };
+    
+    if (!isClient) {
+        return null;
+    }
 
     return (
         <div className="space-y-8">
