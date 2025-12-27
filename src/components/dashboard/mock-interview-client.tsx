@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import {
   Accordion,
   AccordionContent,
@@ -17,9 +17,10 @@ import { Progress } from '@/components/ui/progress';
 import { PROFESSIONS } from '@/lib/constants';
 import { generateInterviewQuestions, type GenerateInterviewQuestionsOutput } from '@/ai/flows/generate-interview-questions';
 import { mockInterviewFeedback, type MockInterviewFeedbackOutput } from '@/ai/flows/mock-interview-feedback';
-import { Loader2, Mic, Sparkles, Star, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Loader2, Mic, Sparkles, Star, ChevronLeft, ChevronRight, Check, MicOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 
 type InterviewQuestion = GenerateInterviewQuestionsOutput['questions'][0];
 type InterviewState = 'idle' | 'generating_questions' | 'ready_to_start' | 'in_progress' | 'getting_feedback' | 'feedback_ready' | 'completed';
@@ -40,6 +41,25 @@ export function MockInterviewClient() {
     const [answer, setAnswer] = useState('');
     const [allFeedback, setAllFeedback] = useState<(MockInterviewFeedbackOutput & { question: string })[]>([]);
     const [currentFeedback, setCurrentFeedback] = useState<MockInterviewFeedbackOutput | null>(null);
+
+    const { isListening, transcript, startListening, stopListening, error: speechError } = useSpeechToText();
+
+    useEffect(() => {
+        if(speechError) {
+            toast({
+                title: 'Speech Recognition Error',
+                description: speechError,
+                variant: 'destructive'
+            })
+        }
+    }, [speechError, toast]);
+
+    useEffect(() => {
+        if (transcript) {
+            setAnswer(transcript);
+        }
+    }, [transcript]);
+
 
     const handleGenerateQuestions = () => {
         if (!profession) {
@@ -71,6 +91,8 @@ export function MockInterviewClient() {
     };
 
     const handleGetFeedback = () => {
+        if(isListening) stopListening();
+
         const currentQuestion = questions[currentQuestionIndex];
         if (!currentQuestion || !answer) {
             toast({ title: 'Please provide an answer.', variant: 'destructive' });
@@ -155,8 +177,8 @@ export function MockInterviewClient() {
                             <Label htmlFor="type-text" className="flex items-center gap-2 border rounded-md p-3 flex-1 has-[:checked]:bg-primary/10 has-[:checked]:border-primary cursor-pointer">
                                 <RadioGroupItem value="text" id="type-text" /> Text-based Interview
                             </Label>
-                            <Label htmlFor="type-voice" className="flex items-center gap-2 border rounded-md p-3 flex-1 has-[:checked]:bg-primary/10 has-[:checked]:border-primary cursor-not-allowed opacity-50" aria-disabled="true">
-                                <RadioGroupItem value="voice" id="type-voice" disabled /> Voice-based (Coming Soon)
+                            <Label htmlFor="type-voice" className="flex items-center gap-2 border rounded-md p-3 flex-1 has-[:checked]:bg-primary/10 has-[:checked]:border-primary cursor-pointer">
+                                <RadioGroupItem value="voice" id="type-voice" /> Voice-based Interview
                             </Label>
                         </RadioGroup>
                     </div>
@@ -246,21 +268,32 @@ export function MockInterviewClient() {
                 <CardContent className="space-y-4">
                      <div className="space-y-2">
                         <Label htmlFor="answer">Your Answer</Label>
-                        <Textarea
-                            id="answer"
-                            placeholder="Type your answer here..."
-                            className="min-h-[150px] text-base"
-                            value={answer}
-                            onChange={(e) => setAnswer(e.target.value)}
-                            readOnly={interviewState !== 'in_progress'}
-                        />
-                     </div>
-                     {interviewType === 'voice' && (
-                        <div className="flex items-center gap-4">
-                            <Button variant="outline" size="icon" disabled><Mic className="h-5 w-5"/></Button>
-                            <p className="text-sm text-muted-foreground">Voice input is not yet enabled.</p>
+                        <div className="relative">
+                            <Textarea
+                                id="answer"
+                                placeholder={
+                                    interviewType === 'voice' 
+                                        ? (isListening ? 'Listening...' : 'Click the mic to start speaking...') 
+                                        : 'Type your answer here...'
+                                }
+                                className="min-h-[150px] text-base"
+                                value={answer}
+                                onChange={(e) => setAnswer(e.target.value)}
+                                readOnly={interviewState !== 'in_progress' || isListening}
+                            />
+                            {interviewType === 'voice' && (
+                                <Button
+                                    size="icon"
+                                    variant={isListening ? 'destructive' : 'outline'}
+                                    className="absolute bottom-3 right-3"
+                                    onClick={isListening ? stopListening : startListening}
+                                    disabled={interviewState !== 'in_progress' || isPending}
+                                >
+                                    {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                                </Button>
+                            )}
                         </div>
-                     )}
+                     </div>
                 </CardContent>
             </Card>
 
@@ -268,16 +301,20 @@ export function MockInterviewClient() {
                 <Button variant="outline" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
                     <ChevronLeft className="mr-2"/> Previous
                 </Button>
-                {interviewState === 'in_progress' && (
-                    <Button onClick={handleGetFeedback} disabled={!answer || isPending}>
-                        {isPending ? <Loader2 className="animate-spin" /> : <Check className="mr-2"/>} Submit Answer
-                    </Button>
-                )}
-                 {interviewState === 'feedback_ready' && (
-                    <Button onClick={handleNextQuestion}>
-                        {currentQuestionIndex === questions.length - 1 ? 'Finish Interview' : 'Next Question'}
-                        <ChevronRight className="ml-2"/>
-                    </Button>
+                {(interviewState === 'in_progress' || interviewState === 'feedback_ready') && (
+                    <>
+                    {interviewState === 'in_progress' && (
+                        <Button onClick={handleGetFeedback} disabled={!answer || isPending || isListening}>
+                            {isPending ? <Loader2 className="animate-spin" /> : <Check className="mr-2"/>} Submit Answer
+                        </Button>
+                    )}
+                     {interviewState === 'feedback_ready' && (
+                        <Button onClick={handleNextQuestion}>
+                            {currentQuestionIndex === questions.length - 1 ? 'Finish Interview' : 'Next Question'}
+                            <ChevronRight className="ml-2"/>
+                        </Button>
+                    )}
+                    </>
                 )}
             </div>
 
