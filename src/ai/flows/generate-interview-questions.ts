@@ -16,8 +16,14 @@ const GenerateInterviewQuestionsInputSchema = z.object({
 });
 export type GenerateInterviewQuestionsInput = z.infer<typeof GenerateInterviewQuestionsInputSchema>;
 
+const InterviewQuestionSchema = z.object({
+    question: z.string().describe('The interview question.'),
+    category: z.string().describe('The category of the question (e.g., Conceptual, Behavioral, System Design).'),
+    difficulty: z.enum(['Basic', 'Intermediate', 'Advanced']).describe('The difficulty of the question.')
+});
+
 const GenerateInterviewQuestionsOutputSchema = z.object({
-  questions: z.array(z.string()).describe('An array of five interview questions specific to the profession.'),
+  questions: z.array(InterviewQuestionSchema).describe('An array of 15-25 interview questions of varying difficulty and category.'),
 });
 export type GenerateInterviewQuestionsOutput = z.infer<typeof GenerateInterviewQuestionsOutputSchema>;
 
@@ -29,16 +35,17 @@ const prompt = ai.definePrompt({
   name: 'generateInterviewQuestionsPrompt',
   input: {schema: GenerateInterviewQuestionsInputSchema},
   output: {schema: GenerateInterviewQuestionsOutputSchema},
-  prompt: `You are an expert career coach. Generate five interview questions for the following profession: {{{profession}}}. Return the questions as a numbered list.
+  prompt: `You are an expert hiring manager for the tech industry. Generate a list of 15 realistic interview questions for the following profession: {{{profession}}}.
 
-      Example:
-      1. Tell me about yourself.
-      2. Why are you interested in this position?
-      3. What are your strengths and weaknesses?
-      4. Where do you see yourself in 5 years?
-      5. Why should we hire you?
+The questions should cover a range of categories including Conceptual, Scenario-based, Troubleshooting, System Design, and Behavioral (STAR format).
 
-  `,config: {
+The difficulty should be distributed as follows:
+- 30% Basic
+- 40% Intermediate
+- 30% Advanced
+
+Return the questions in the specified JSON format.
+`,config: {
     safetySettings: [
       {
         category: 'HARM_CATEGORY_HATE_SPEECH',
