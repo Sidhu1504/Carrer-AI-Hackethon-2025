@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, ChangeEvent } from 'react';
+import { useState, ChangeEvent, useEffect } from 'react';
 import * as pdfjs from 'pdfjs-dist/build/pdf';
 
 // Required for pdfjs-dist to work
@@ -64,13 +64,15 @@ export function ResumeAnalyzerClient() {
     const [resumeText, setResumeText] = useState('');
     const [fileName, setFileName] = useState('');
 
-    if (state.error) {
-        toast({
-          variant: "destructive",
-          title: "Analysis Failed",
-          description: state.error,
-        });
-    }
+    useEffect(() => {
+        if (state.error) {
+            toast({
+              variant: "destructive",
+              title: "Analysis Failed",
+              description: state.error,
+            });
+        }
+    }, [state.error, toast]);
 
     const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
