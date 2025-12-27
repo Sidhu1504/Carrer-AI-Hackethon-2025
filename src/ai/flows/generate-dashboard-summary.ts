@@ -1,71 +1,132 @@
-'use server';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { OverviewChart } from "@/components/dashboard/overview-chart";
+import { RecentAnalyses } from "@/components/dashboard/recent-analyses";
+import {
+    Activity,
+    Award,
+    BarChart,
+    Target,
+    TrendingDown,
+    TrendingUp,
+} from 'lucide-react';
 
-/**
- * @fileOverview This file defines a Genkit flow for generating a personalized dashboard summary 
- * based on a user's resume and target profession.
- *
- * - generateDashboardSummary: A function that returns a comprehensive career readiness analysis.
- * - GenerateDashboardSummaryInput: The input type for the function.
- * - GenerateDashboardSummaryOutput: The output type for the function.
- */
+export default function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
+  const userName = searchParams?.name as string || 'there';
+  
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Welcome back, {userName.split(" ")[0]} 👋
+          </h1>
+          <p className="text-muted-foreground">
+            Here's an overview of your progress and recent activity.
+          </p>
+        </div>
+      </div>
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+      <div className="space-y-8">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Readiness Score</CardTitle>
+                    <Target className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-primary">82%</div>
+                    <p className="text-xs text-muted-foreground">For a Senior DevOps role</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Skills Coverage</CardTitle>
+                    <Award className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-primary">91%</div>
+                    <p className="text-xs text-muted-foreground">vs. target role</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Avg. Interview Score</CardTitle>
+                    <BarChart className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">8.6 / 10</div>
+                    <p className="text-xs text-muted-foreground">Based on 12 interviews</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Interviews Taken</CardTitle>
+                    <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">12</div>
+                    <p className="text-xs text-muted-foreground">Keep practicing!</p>
+                </CardContent>
+            </Card>
+            
+            <Card className="lg:col-span-2">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Strong Areas</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2 pt-2">
+                    {['Kubernetes', 'Terraform', 'CI/CD', 'AWS'].map(skill => (
+                        <span key={skill} className="text-xs font-medium bg-green-500/20 text-green-400 px-2 py-1 rounded-full">{skill}</span>
+                    ))}
+                </CardContent>
+            </Card>
 
-const GenerateDashboardSummaryInputSchema = z.object({
-  resumeText: z.string().describe('The full text content of the user\'s resume.'),
-  profession: z.string().describe('The user\'s target job role (e.g., "Software Engineer").'),
-});
-export type GenerateDashboardSummaryInput = z.infer<typeof GenerateDashboardSummaryInputSchema>;
+            <Card className="lg:col-span-2">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Weak Areas</CardTitle>
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2 pt-2">
+                     {['Python', 'Go', 'System Design'].map(skill => (
+                        <span key={skill} className="text-xs font-medium bg-red-500/20 text-red-400 px-2 py-1 rounded-full">{skill}</span>
+                    ))}
+                </CardContent>
+            </Card>
+        </div>
+      </div>
 
-const GenerateDashboardSummaryOutputSchema = z.object({
-  targetRole: z.string().describe("The user's target role, as provided in the input."),
-  readinessScore: z.number().int().min(0).max(100).describe('An overall "job readiness" score from 0-100, calculated based on skill alignment and estimated experience.'),
-  skillsCoverage: z.number().int().min(0).max(100).describe('The percentage of required skills for the target role that are present in the resume.'),
-  strongAreas: z.array(z.string()).describe('The top 3-4 skills or technologies where the user shows strong proficiency.'),
-  weakAreas: z.array(z.string()).describe('The top 3-4 most critical skills that are missing or weak for the target role.'),
-  interviewsTaken: z.number().int().min(0).describe('A simulated number of interviews taken. Generate a random number between 5 and 25.'),
-  averageInterviewScore: z.number().min(0).max(10).describe('A simulated average score from past mock interviews. Generate a random number between 6.5 and 9.5 with one decimal place.'),
-});
-export type GenerateDashboardSummaryOutput = z.infer<typeof GenerateDashboardSummaryOutputSchema>;
-
-
-const prompt = ai.definePrompt({
-  name: 'generateDashboardSummaryPrompt',
-  input: {schema: GenerateDashboardSummaryInputSchema},
-  output: {schema: GenerateDashboardSummaryOutputSchema},
-  prompt: `You are an expert career analyst and AI dashboard generator for a platform called CareerCraft AI.
-Your task is to analyze a user's resume against their stated target profession and generate a JSON object summarizing their career readiness.
-
-**User's Target Role:** {{{profession}}}
-**User's Resume:**
-\`\`\`
-{{{resumeText}}}
-\`\`\`
-
-**Your Analysis Must Cover:**
-1.  **Skills Analysis:** Identify the key skills, technologies, and methodologies present in the resume. Compare them against the typical requirements for a mid-level {{{profession}}}.
-2.  **Readiness Score (0-100):** Synthesize all factors to create a holistic "job readiness" score. A junior profile applying for a senior role should have a lower score, while a perfect match should be high.
-3.  **Skills Coverage (0-100):** Calculate the percentage of required skills for the role that the user possesses.
-4.  **Strengths & Weaknesses:** Identify the top 3-4 strongest skills and the top 3-4 most critical missing skills.
-5.  **Simulated Data:** Generate a plausible random number for "interviewsTaken" (between 5 and 25) and "averageInterviewScore" (a float between 6.5 and 9.5).
-
-Return the data in the specified JSON format.
-`,
-});
-
-const generateDashboardSummaryFlow = ai.defineFlow(
-  {
-    name: 'generateDashboardSummaryFlow',
-    inputSchema: GenerateDashboardSummaryInputSchema,
-    outputSchema: GenerateDashboardSummaryOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
-
-export async function generateDashboardSummary(input: GenerateDashboardSummaryInput): Promise<GenerateDashboardSummaryOutput> {
-  return generateDashboardSummaryFlow(input);
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mt-8">
+        <Card className="col-span-4">
+          <CardHeader>
+            <CardTitle>Performance Overview</CardTitle>
+            <CardDescription>
+              Your mock interview scores over the last 7 sessions.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pl-2">
+            <OverviewChart />
+          </CardContent>
+        </Card>
+        <Card className="col-span-3">
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>An overview of your recent actions.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RecentAnalyses />
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  );
 }
