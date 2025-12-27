@@ -1,19 +1,25 @@
-"use client";
+'use client';
 
-import { useState, useTransition } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { PROFESSIONS } from "@/lib/constants";
-import { generateInterviewQuestions, type GenerateInterviewQuestionsOutput } from "@/ai/flows/generate-interview-questions";
-import { mockInterviewFeedback, type MockInterviewFeedbackOutput } from "@/ai/flows/mock-interview-feedback";
-import { Loader2, Mic, Sparkles, Star, ChevronLeft, ChevronRight, Check } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
+import { useState, useTransition } from 'react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { PROFESSIONS } from '@/lib/constants';
+import { generateInterviewQuestions, type GenerateInterviewQuestionsOutput } from '@/ai/flows/generate-interview-questions';
+import { mockInterviewFeedback, type MockInterviewFeedbackOutput } from '@/ai/flows/mock-interview-feedback';
+import { Loader2, Mic, Sparkles, Star, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 type InterviewQuestion = GenerateInterviewQuestionsOutput['questions'][0];
 type InterviewState = 'idle' | 'generating_questions' | 'ready_to_start' | 'in_progress' | 'getting_feedback' | 'feedback_ready' | 'completed';
@@ -119,7 +125,7 @@ export function MockInterviewClient() {
 
     const renderStars = (score: number) => {
         return Array.from({ length: 10 }, (_, i) => (
-            <Star key={i} className={`h-5 w-5 ${i < score ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground'}`} />
+            <Star key={i} className={`h-5 w-5 ${i < Math.round(score) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground'}`} />
         ));
     };
 
@@ -137,7 +143,7 @@ export function MockInterviewClient() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
-                        <Label>1. Select Your Profession</Label>
+                        <Label>1. Select Your Target Role</Label>
                         <Select onValueChange={setProfession} value={profession}>
                             <SelectTrigger><SelectValue placeholder="Select a profession..." /></SelectTrigger>
                             <SelectContent>{PROFESSIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
@@ -149,7 +155,7 @@ export function MockInterviewClient() {
                             <Label htmlFor="type-text" className="flex items-center gap-2 border rounded-md p-3 flex-1 has-[:checked]:bg-primary/10 has-[:checked]:border-primary cursor-pointer">
                                 <RadioGroupItem value="text" id="type-text" /> Text-based Interview
                             </Label>
-                            <Label htmlFor="type-voice" className="flex items-center gap-2 border rounded-md p-3 flex-1 has-[:checked]:bg-primary/10 has-[:checked]:border-primary cursor-pointer disabled:opacity-50" aria-disabled="true">
+                            <Label htmlFor="type-voice" className="flex items-center gap-2 border rounded-md p-3 flex-1 has-[:checked]:bg-primary/10 has-[:checked]:border-primary cursor-not-allowed opacity-50" aria-disabled="true">
                                 <RadioGroupItem value="voice" id="type-voice" disabled /> Voice-based (Coming Soon)
                             </Label>
                         </RadioGroup>
@@ -180,7 +186,7 @@ export function MockInterviewClient() {
     }
 
     if (interviewState === 'completed') {
-        const avgScore = allFeedback.reduce((acc, fb) => acc + fb.score, 0) / allFeedback.length;
+        const avgScore = allFeedback.length > 0 ? allFeedback.reduce((acc, fb) => acc + fb.score, 0) / allFeedback.length : 0;
         return (
             <Card className="max-w-2xl mx-auto">
                 <CardHeader className="text-center">
@@ -191,7 +197,7 @@ export function MockInterviewClient() {
                     <div className="flex flex-col items-center gap-2">
                         <p className="text-muted-foreground">Overall Average Score</p>
                         <div className="flex items-center gap-2">
-                           {renderStars(Math.round(avgScore))}
+                           {renderStars(avgScore)}
                         </div>
                         <p className="text-2xl font-bold">{avgScore.toFixed(1)} / 10</p>
                     </div>
@@ -224,11 +230,18 @@ export function MockInterviewClient() {
         <div className="space-y-6">
             <Card>
                 <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <CardTitle>Question {currentQuestionIndex + 1} of {questions.length}</CardTitle>
-                        <Badge variant="outline">{currentQuestion.category}</Badge>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle>Question {currentQuestionIndex + 1} of {questions.length}</CardTitle>
+                            <CardDescription className="text-lg text-foreground pt-2">{currentQuestion.question}</CardDescription>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                             <Badge variant="outline">{currentQuestion.category}</Badge>
+                             <Badge variant={currentQuestion.difficulty === 'Advanced' ? 'destructive' : currentQuestion.difficulty === 'Intermediate' ? 'secondary' : 'default'} className="bg-opacity-20">
+                                {currentQuestion.difficulty}
+                             </Badge>
+                        </div>
                     </div>
-                    <CardDescription className="text-base text-foreground pt-2">{currentQuestion.question}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="space-y-2">

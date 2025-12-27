@@ -21,8 +21,8 @@ const SkillGapIdentificationInputSchema = z.object({
 export type SkillGapIdentificationInput = z.infer<typeof SkillGapIdentificationInputSchema>;
 
 const SkillGapIdentificationOutputSchema = z.object({
-  missingSkills: z.array(z.string()).describe('List of missing skills.'),
-  learningPlan: z.string().describe('A personalized 4-week learning plan.'),
+  missingSkills: z.array(z.string()).describe('A list of the top 3-5 most critical missing skills for a generalist tech role (e.g., Software Engineer, DevOps).'),
+  learningPlan: z.string().describe('A structured, personalized 4-week learning plan in Markdown format. Each week should have a clear focus and include links to high-quality resources like articles, tutorials, or documentation.'),
 });
 export type SkillGapIdentificationOutput = z.infer<typeof SkillGapIdentificationOutputSchema>;
 
@@ -34,13 +34,20 @@ const prompt = ai.definePrompt({
   name: 'skillGapIdentificationPrompt',
   input: {schema: SkillGapIdentificationInputSchema},
   output: {schema: SkillGapIdentificationOutputSchema},
-  prompt: `You are an expert career advisor. Analyze the resume text provided and identify missing skills that would be beneficial for the candidate.
+  prompt: `You are an expert career advisor and technical recruiter for the tech industry.
 
-Resume Text: {{{resumeText}}}
+Analyze the resume text provided below to identify critical missing skills for a mid-level technical role (like Software Engineer or DevOps Engineer).
 
-Based on the identified missing skills, generate a personalized 4-week learning plan to acquire those skills. Return a list of missing skills and the learning plan.
+Resume Text:
+{{{resumeText}}}
 
-Make sure the learning plan is actionable and includes specific resources for learning.
+Based on your analysis:
+1.  Identify the top 3-5 most impactful missing skills.
+2.  Generate a personalized, actionable 4-week learning plan in Markdown format.
+3.  The plan should be structured weekly, with clear goals for each week.
+4.  For each skill, provide links to 1-2 high-quality, free online resources (e.g., official documentation, popular tutorials, in-depth articles).
+
+Return a list of the missing skills and the detailed learning plan.
 `, 
 });
 

@@ -20,8 +20,8 @@ const MockInterviewFeedbackInputSchema = z.object({
 export type MockInterviewFeedbackInput = z.infer<typeof MockInterviewFeedbackInputSchema>;
 
 const MockInterviewFeedbackOutputSchema = z.object({
-  feedback: z.string().describe('AI-driven feedback on the answer.'),
-  score: z.number().describe('A numerical score representing the quality of the answer.'),
+  feedback: z.string().describe('Detailed, constructive feedback on the answer, highlighting strengths and areas for improvement. The feedback should be in Markdown format.'),
+  score: z.number().int().min(1).max(10).describe('A numerical score from 1 to 10 representing the quality of the answer, considering technical accuracy, depth, and clarity.'),
 });
 export type MockInterviewFeedbackOutput = z.infer<typeof MockInterviewFeedbackOutputSchema>;
 
@@ -33,17 +33,24 @@ const prompt = ai.definePrompt({
   name: 'mockInterviewFeedbackPrompt',
   input: {schema: MockInterviewFeedbackInputSchema},
   output: {schema: MockInterviewFeedbackOutputSchema},
-  prompt: `You are an AI-powered interview coach providing feedback on mock interview answers.
+  prompt: `You are an AI-powered interview coach, acting as an expert hiring manager for the specified profession. Your task is to provide detailed, constructive feedback on a candidate's answer.
 
-  Profession: {{profession}}
-  Question: {{question}}
-  Answer: {{answer}}
+  **Profession:** {{profession}}
+  **Question:** "{{question}}"
+  **Candidate's Answer:** "{{answer}}"
 
-  Provide constructive feedback on the answer, including areas for improvement and a score (out of 10) reflecting the quality of the response.
-  The score should be an integer from 1 to 10.
-  Ensure that the output is a valid JSON conforming to the specified JSON schema.
-  Here is the output schema:
-  {{outputSchema}}`,
+  **Evaluation Criteria:**
+  1.  **Technical Accuracy:** Is the answer factually correct?
+  2.  **Depth of Knowledge:** Does the answer demonstrate a deep understanding of the topic?
+  3.  **Clarity and Structure:** Is the answer well-structured and easy to understand?
+  4.  **Real-world Relevance:** Does the candidate connect the concept to practical applications or experiences?
+
+  **Your Task:**
+  1.  Provide high-quality, constructive feedback in Markdown format. Start with what the candidate did well, then move to specific areas for improvement.
+  2.  Assign an integer score from 1 (poor) to 10 (excellent) based on the evaluation criteria.
+
+  Return the feedback and score in the specified JSON format.
+  `,
 });
 
 const mockInterviewFeedbackFlow = ai.defineFlow(
