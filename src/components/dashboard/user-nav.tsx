@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from 'next/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,20 +12,36 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useUser, useAuth } from "@/firebase";
+import { Skeleton } from "@/components/ui/skeleton";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
+
 
 export function UserNav() {
-  const searchParams = useSearchParams();
-  const userName = searchParams.get('name') || "User";
-  const userEmail = searchParams.get('email') || "user@example.com";
-  
-  const initials = userName.split(' ').map(n => n[0]).join('');
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/');
+  }
+
+  if (isUserLoading) {
+    return <Skeleton className="h-8 w-8 rounded-full" />;
+  }
+
+  const userName = user?.displayName || user?.email?.split('@')[0] || "User";
+  const userEmail = user?.email || "No email";
+  const initials = userName.split(' ').map(n => n[0]).join('').substring(0, 2);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={`https://avatar.vercel.sh/${userEmail}.png`} alt={userName} />
+            <AvatarImage src={user?.photoURL || `https://avatar.vercel.sh/${userEmail}.png`} alt={userName} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
         </Button>
@@ -50,8 +65,8 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-            <Link href="/">Logout</Link>
+        <DropdownMenuItem onClick={handleLogout}>
+            Logout
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -2,30 +2,12 @@
 
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
+import { FirebaseError } from 'firebase/app';
 
-// Note: In a real application, you would use a library like `bcryptjs`
-// to hash passwords and a database to store user credentials.
-// This is a simplified example for demonstration purposes.
-
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1, "Password is required"),
-});
-
-export async function login(prevState: any, formData: FormData) {
-  const parsed = loginSchema.safeParse(Object.fromEntries(formData.entries()));
-
-  if (!parsed.success) {
-    return { message: "Invalid email or password." };
-  }
-  
-  // Simulate database check and JWT creation
-  console.log('User logged in:', parsed.data);
-  const name = parsed.data.email.split('@')[0]; // Simulate getting name from DB
-  const email = parsed.data.email;
-  
-  redirect(`/dashboard?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}`);
-}
+const { auth, firestore } = initializeFirebase();
 
 
 const signupSchema = z.object({
@@ -38,13 +20,55 @@ export async function signup(prevState: any, formData: FormData) {
   const parsed = signupSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!parsed.success) {
-    // A real app would provide more specific error messages
-    return { message: "Invalid form data." };
+    return { message: "Invalid form data. Please check your entries." };
   }
 
-  // Simulate user creation in the database
-  console.log('User signed up:', parsed.data);
-  const { name, email } = parsed.data;
+  const { name, email, password } = parsed.data;
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Create a user document in Firestore
+    await setDoc(doc(firestore, "users", user.uid), {
+      uid: user.uid,
+      name: name,
+      email: user.email,
+      createdAt: serverTimestamp(),
+    });
+
+  } catch (e) {
+    if (e instanceof FirebaseError) {
+      return { message: e.message };
+    }
+    return { message: "An unknown error occurred. Please try again." };
+  }
   
-  redirect(`/dashboard?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}`);
+  redirect('/dashboard');
+}
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1, "Password is required"),
+});
+
+export async function login(prevState: any, formData: FormData) {
+  const parsed = loginSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!parsed.success) {
+    return { message: "Invalid email or password." };
+  }
+
+  const { email, password } = parsed.data;
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (e) {
+     if (e instanceof FirebaseError) {
+      return { message: e.message };
+    }
+    return { message: "An unknown error occurred. Please try again." };
+  }
+
+  redirect('/dashboard');
 }

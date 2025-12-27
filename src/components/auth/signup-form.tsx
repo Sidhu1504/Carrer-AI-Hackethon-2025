@@ -39,7 +39,7 @@ export function SignupForm() {
       </div>
       <div className="grid gap-2">
         <Label htmlFor="password">Password</Label>
-        <Input id="password" name="password" type="password" required />
+        <Input id="password" name="password" type="password" required minLength={8} />
       </div>
       {state?.message && (
         <Alert variant="destructive">

@@ -1,3 +1,4 @@
+'use client';
 import {
   Card,
   CardContent,
@@ -15,20 +16,18 @@ import {
     TrendingDown,
     TrendingUp,
 } from 'lucide-react';
+import { useUser } from "@/firebase";
 
-export default function DashboardPage({
-  searchParams,
-}: {
-  searchParams?: { [key: string]: string | string[] | undefined };
-}) {
-  const userName = searchParams?.name as string || 'there';
+export default function DashboardPage() {
+  const { user } = useUser();
+  const userName = user?.displayName || user?.email?.split('@')[0] || 'there';
   
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Welcome back, {userName.split(" ")[0]} 👋
+            Welcome back, {userName} 👋
           </h1>
           <p className="text-muted-foreground">
             Here's an overview of your progress and recent activity.
